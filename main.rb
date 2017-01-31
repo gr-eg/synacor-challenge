@@ -34,6 +34,8 @@ class VM
     @stack = []
     @next_instruction = nil
     @input = []
+    @teleporting = false
+    @teleporter_energy = 0
   end
 
   def run
@@ -150,20 +152,25 @@ class VM
   end
 
   def in
-    char = @input.any? ? @input.shift : $stdin.getc
-    if char == "~"
-      File.read("maze.txt").chomp.each_char { |x| @input << x }
-      char = @input.shift
-    end
-    if char == "*"
-      byebug
-      @registers[0] = 25976
+    if @teleporting && @input.empty?
+      @registers[7] = @teleporter_energy
+      @teleporter_energy += 1
       @input = "use teleporter".split ""
       char = @input.shift
+    else
+      char = @input.any? ? @input.shift : $stdin.getc
+      if char == "~"
+        File.read("maze.txt").chomp.each_char { |x| @input << x }
+        char = @input.shift
+      end
+      if char == "*"
+        @teleporting = true
+        @registers[7] = 1
+        @input = "use teleporter".split ""
+        char = @input.shift
+      end
     end
-    reg = register
-    puts "Saving #{char} to #{reg}"
-    @registers[reg] = char.ord
+    @registers[register] = char.ord
   end
 
   def noop
