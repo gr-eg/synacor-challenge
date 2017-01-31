@@ -153,8 +153,6 @@ class VM
 
   def wmem
     @log << "WMEM - #{@index}"
-    # key, value = two_values
-    # @memory[key] = value
     register, value = [next_instruction, next_instruction]
     @instructions[register] = value
   end
@@ -177,23 +175,10 @@ class VM
     #   it can be assumed that once input starts, it will continue until a newline is encountered;
     #   this means that you can safely read whole lines from the keyboard and trust that they will be fully read
     @log << "IN - #{@index}"
-
-    char = $stdin.getch
-    puts char
-    @instructions[next_instruction] = char.ord
-    # puts line
-    # char = STDIN.getc
-    # halt unless char
-    # code = char.ord
-    # instruction = raw_instruction
-    # register, value = register_and_value
-    # @memory[register] = value
-    # if register? instruction
-    #   key = register_id instruction
-    #   @registers[key] = code
-    # else
-    #   @memory[instruction] = code
-    # end
+    char = $stdin.getc
+    # byebug
+    # @accepted_input = true
+    @registers[register] = char.ord
   end
 
 
