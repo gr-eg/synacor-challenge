@@ -28,13 +28,12 @@ class VM
   }.freeze
 
   def initialize(machine)
-    @debug = ARGV[0] == "true"
     @machine = machine
     @instructions = File.read(@machine).unpack('v*')
     @registers = []
     @stack = []
     @next_instruction = nil
-    @log = []
+    @input = []
   end
 
   def run
@@ -51,17 +50,14 @@ class VM
   end
 
   def out
-    @log << "OUT - #{@index}"
     print next_instruction.chr
   end
 
   def jmp
-    @log << "JMP - #{@index}"
     @next_instruction = next_instruction
   end
 
   def jt
-    @log << "JT - #{@index}"
     ni = next_instruction
     @next_instruction = if ni.zero?
                           @index + 2
@@ -71,7 +67,6 @@ class VM
   end
 
   def jf
-    @log << "JF - #{@index}"
     @next_instruction = if next_instruction.zero?
                           next_instruction
                         else
@@ -80,120 +75,105 @@ class VM
   end
 
   def set
-    @log << "SET - #{@index}"
     register, value = register_and_value
     @registers[register] = value
   end
 
   def add
-    @log << "ADD - #{@index}"
     register, v1, v2 = register_and_two_values
     value = (v1 + v2) % 32_768
     @registers[register] = value
   end
 
   def mult
-    @log << "MULT - #{@index}"
     register, v1, v2 = register_and_two_values
     @registers[register] = (v1 * v2) % 32_768
   end
 
   def eq
-    @log << "EQ - #{@index}"
     register, v1, v2 = register_and_two_values
     value = v1 == v2 ? 1 : 0
     @registers[register] = value
   end
 
   def push
-    @log << "PUSH - #{@index}"
     @stack.push(next_instruction)
   end
 
   def pop
-    @log << "POP - #{@index}"
     @registers[register] = @stack.pop
   end
 
   def gt
-    @log << "GT - #{@index}"
     register, v1, v2 = register_and_two_values
     @registers[register] = v1 > v2 ? 1 : 0
   end
 
   def and
-    @log << "AND - #{@index}"
     register, v1, v2 = register_and_two_values
     @registers[register] = v1 & v2
   end
 
   def mod
-    @log << "MOD - #{@index}"
     register, v1, v2 = register_and_two_values
     @registers[register] = (v1 % v2)
   end
 
   def or
-    @log << "OR - #{@index}"
     register, v1, v2 = register_and_two_values
     @registers[register] = v1 | v2
   end
 
   def not
-    @log << "NOT - #{@index}"
     register, value = register_and_value
     @registers[register] = (~ value) & 32_767
   end
 
   def rmem
-    @log << "RMEM - #{@index}"
     register, value = register_and_value
     @registers[register] = @instructions[value]
   end
 
   def wmem
-    @log << "WMEM - #{@index}"
-    register, value = [next_instruction, next_instruction]
+    register, value = two_instructions
     @instructions[register] = value
   end
 
   def call
-    @log << "CALL - #{@index}"
     @stack.push @index + 2
     jump_point = next_instruction
     @next_instruction = jump_point
   end
 
   def ret
-    @log << "RET - #{@index}"
     @next_instruction = @stack.pop
   end
 
   def in
-    # in: 20 a
-    #   read a character from the terminal and write its ascii code to <a>;
-    #   it can be assumed that once input starts, it will continue until a newline is encountered;
-    #   this means that you can safely read whole lines from the keyboard and trust that they will be fully read
-    @log << "IN - #{@index}"
-    char = $stdin.getc
-    # byebug
-    # @accepted_input = true
-    @registers[register] = char.ord
+    char = @input.any? ? @input.shift : $stdin.getc
+    if char == "~"
+      File.read("maze.txt").chomp.each_char { |x| @input << x }
+      char = @input.shift
+    end
+    if char == "*"
+      byebug
+      @registers[0] = 25976
+      @input = "use teleporter".split ""
+      char = @input.shift
+    end
+    reg = register
+    puts "Saving #{char} to #{reg}"
+    @registers[reg] = char.ord
   end
 
-
   def noop
-    @log << "NOOP - #{@index}"
   end
 
   def halt
-    @log << "HALT - #{@index}"
-    @log.each { |x| puts x } if @debug
     exit
   end
 
   def not_implemented
-    @log << "NOT_IMPLEMENTED - #{@instructions[@index]}"
   end
 
   private
@@ -201,10 +181,11 @@ class VM
   def next_instruction
     @index += 1
     ni = @instructions[@index]
-    if ni >= 32_768
-      ni = get_register(ni)
-    end
-    ni
+    ni < 32_768 ? ni : get_register(ni)
+  end
+
+  def two_instructions
+    [next_instruction, next_instruction]
   end
 
   def register
